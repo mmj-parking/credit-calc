@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>建築学科 単位シミュレーター</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    button { touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+    .state-completed { background:#2563eb !important; color:white !important; border:2px solid #1e40af !important; position: relative; }
+    .state-planned { background:#facc15 !important; color:black !important; border:2px solid #ca8a04 !important; position: relative; }
+    .state-none { background:white; border:2px solid #e5e7eb; position: relative; }
+    .state-none:hover { background:#eff6ff; border-color:#93c5fd; }
+    .done-badge { position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; font-size: 8px; padding: 1px 4px; border-radius: 4px; border: 1px solid white; font-weight: bold; z-index: 10; }
+    .plan-badge { position: absolute; top: -5px; right: -5px; background: #ca8a04; color: white; font-size: 8px; padding: 1px 4px; border-radius: 4px; border: 1px solid white; font-weight: bold; z-index: 10; }
+    .grid-container { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:10px; }
+    @media(max-width:640px) { .grid-container { grid-template-columns:repeat(2,1fr); } }
+    .progress-wrap { background: #e5e7eb; border-radius: 6px; overflow: hidden; display: flex; width: 100%; }
+    .progress-blue { background: #3b82f6; transition: width 0.3s ease; height: 100%; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: bold; overflow: hidden; white-space: nowrap; }
+    .progress-yellow { background: #facc15; transition: width 0.3s ease; height: 100%; display: flex; align-items: center; justify-content: center; color: #713f12; font-size: 10px; font-weight: bold; overflow: hidden; white-space: nowrap; }
+    .sticky-header { position: sticky; top: 0; z-index: 50; }
+    .badge { padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: bold; border: 1px solid; transition: all 0.2s; white-space: nowrap; }
+    .badge-off { background: #f3f4f6; color: #9ca3af; border-color: #e5e7eb; }
+    .badge-on { background: #f0fdf4; color: #166534; border-color: #bbf7d0; } /* 達成時：緑 */
+    .badge-warn { background: #fef2f2; color: #dc2626; border-color: #fca5a5; } /* 警告：赤 */
+</style>
+</head>
+<body class="bg-gray-50 p-4 pb-20">
+
+<div id="disclaimer-modal" class="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center backdrop-blur-sm">
+    <div class="bg-white p-6 rounded-2xl max-w-sm mx-4 shadow-2xl">
+        <h2 class="font-bold text-xl mb-3 text-red-600 flex items-center gap-2">⚠️ 免責事項</h2>
+        <p class="text-sm text-gray-700 mb-4 leading-relaxed">このプログラムは非公式のシミュレーターです。実際の卒業要件等は必ず大学の公式情報を確認してください。本ツールの使用による不利益について一切の責任を負いません。</p>
+        <button onclick="document.getElementById('disclaimer-modal').style.display='none'" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold transition-colors">同意して利用する</button>
+    </div>
+</div>
+
+<div class="max-w-5xl mx-auto">
+    <div class="sticky-header bg-white/95 backdrop-blur shadow-md rounded-xl mb-6 border border-gray-200 p-4">
+        <div class="mb-4">
+            <p class="text-sm font-bold mb-1 text-gray-800 flex justify-between max-w-md"><span>🎓 卒業合計</span><span id="gradText-all" class="text-xs">0 / 126</span></p>
+            <div class="progress-wrap max-w-md h-4"><div id="gradBar-comp" class="progress-blue w-0"></div><div id="gradBar-plan" class="progress-yellow w-0"></div></div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 max-w-md mb-4 border-t border-gray-100 pt-3">
+            <div id="block-spec" class="p-1.5 rounded transition-colors border border-transparent">
+                <p class="text-[10px] font-bold mb-1 flex justify-between"><span class="text-gray-500">専門</span><span id="subVal-spec">0 / 92</span></p>
+                <div class="progress-wrap h-3.5"><div id="specBar-comp" class="progress-blue w-0"></div><div id="specBar-plan" class="progress-yellow w-0"></div></div>
+                <p id="warn-spec" class="hidden text-[9px] text-red-600 font-bold mt-1 leading-tight">⚠️ 専門が不足</p>
+            </div>
+            <div id="block-so" class="p-1.5 rounded transition-colors border border-transparent">
+                <p class="text-[10px] font-bold mb-1 flex justify-between"><span class="text-gray-500">S/O</span><span id="subVal-so">0 / 32</span></p>
+                <div class="progress-wrap h-3.5"><div id="soBar-comp" class="progress-blue w-0"></div><div id="soBar-plan" class="progress-yellow w-0"></div></div>
+                <p id="warn-so" class="hidden text-[9px] text-red-600 font-bold mt-1 leading-tight">⚠️ S/Oが不足</p>
+            </div>
+            <div id="block-sem" class="p-1.5 rounded transition-colors border border-transparent">
+                <p class="text-[10px] font-bold mb-1 flex justify-between"><span class="text-gray-500">卒ゼミ</span><span id="subVal-sem">0 / 2</span></p>
+                <div class="progress-wrap h-3.5"><div id="semBar-comp" class="progress-blue w-0"></div><div id="semBar-plan" class="progress-yellow w-0"></div></div>
+                <p id="warn-sem" class="hidden text-[9px] text-red-600 font-bold mt-1 leading-tight">⚠️ 卒ゼミが不足</p>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap gap-2 border-t border-gray-100 pt-3">
+            <span id="top-badge-annual" class="badge">今年度(0/48)</span>
+            <span id="top-badge-2" class="badge">2級(0/40)</span>
+            <span id="top-badge-1" class="badge">1級(0/60)</span>
+        </div>
+    </div>
+
+    <div class="mb-6 flex flex-wrap gap-2 items-center bg-white p-3 rounded-lg shadow-sm border border-gray-100">
+        <span class="text-xs font-bold text-gray-600 mr-2">⚡ 一括入力:</span>
+        <button onclick="applyPreset('design')" class="text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded hover:bg-indigo-100">🎨 デザイン</button>
+        <button onclick="applyPreset('engineering')" class="text-xs px-3 py-1.5 bg-teal-50 text-teal-700 border border-teal-200 rounded hover:bg-teal-100">⚙️ エンジニア</button>
+        <div class="flex-1"></div>
+        <button onclick="applyPreset('reset')" class="text-xs px-3 py-1.5 bg-white text-red-600 border border-red-200 rounded hover:bg-red-50">リセット</button>
+    </div>
+
+    <div id="category-container" class="space-y-6"></div>
+</div>
+
+<script>
+const COURSE_MASTER = [
+{ id:2201, name:"建築デザイン基礎", units:2, year:3, archGroup:1, mode:"text" },
+{ id:2202, name:"建築デザイン基礎演習", units:2, year:3, archGroup:1, mode:"so" },
+{ id:2207, name:"建築デザイン1", units:2, year:3, archGroup:1, mode:"text" },
+{ id:2208, name:"建築デザイン演習1", units:2, year:3, archGroup:1, mode:"so" },
+{ id:2216, name:"建築デザイン2", units:2, year:4, archGroup:1, mode:"text" },
+{ id:2217, name:"建築デザイン演習2", units:2, year:4, archGroup:1, mode:"so" },
+{ id:2225, name:"建築デザイン3", units:2, year:4, archGroup:1, mode:"text" },
+{ id:2226, name:"建築デザイン演習3", units:2, year:4, archGroup:1, mode:"so" },
+{ id:2227, name:"建築デザイン4", units:2, year:4, archGroup:1, mode:"text" },
+{ id:2228, name:"建築デザイン演習4", units:2, year:4, archGroup:1, mode:"so" },
+{ id:2203, name:"建築計画総論", units:2, year:3, archGroup:2, mode:"text" },
+{ id:2204, name:"近代建築史", units:2, year:3, archGroup:2, mode:"text" },
+{ id:2303, name:"福祉住居論", units:2, year:3, archGroup:2, mode:"so" },
+{ id:2209, name:"住宅計画", units:2, year:3, archGroup:2, mode:"text" },
+{ id:2210, name:"日本建築史", units:2, year:3, archGroup:2, mode:"text" },
+{ id:2211, name:"アーバンデザイン", units:2, year:3, archGroup:2, mode:"text" },
+{ id:2218, name:"現代都市計画", units:2, year:3, archGroup:2, mode:"text" },
+{ id:2219, name:"建築計画各論", units:2, year:4, archGroup:2, mode:"text" },
+{ id:2220, name:"西洋建築史", units:2, year:4, archGroup:2, mode:"text" },
+{ id:2311, name:"建築再生論", units:2, year:4, archGroup:2, mode:"text" },
+{ id:2312, name:"都市住宅政策論", units:2, year:4, archGroup:2, mode:"text" },
+{ id:2229, name:"現代ハウジング", units:2, year:4, archGroup:2, mode:"text" },
+{ id:2230, name:"まちづくり論", units:2, year:4, archGroup:2, mode:"text" },
+{ id:2231, name:"環境計画論", units:2, year:4, archGroup:2, mode:"text" },
+{ id:2205, name:"建築環境工学概論", units:2, year:3, archGroup:3, mode:"text" },
+{ id:2212, name:"熱・空気環境", units:2, year:3, archGroup:3, mode:"text" },
+{ id:2213, name:"音・光環境", units:2, year:4, archGroup:3, mode:"text" },
+{ id:2221, name:"建築設備概論", units:2, year:4, archGroup:4, mode:"text" },
+{ id:2214, name:"構造力学I", units:2, year:3, archGroup:5, mode:"so" },
+{ id:2215, name:"建築材料", units:2, year:3, archGroup:7, mode:"text" },
+{ id:2222, name:"構造力学II", units:2, year:3, archGroup:5, mode:"so" },
+{ id:2232, name:"構造力学III", units:2, year:4, archGroup:5, mode:"so" },
+{ id:2206, name:"建築構法", units:2, year:3, archGroup:6, mode:"text" },
+{ id:2223, name:"RC構造", units:2, year:4, archGroup:6, mode:"text" },
+{ id:2233, name:"鉄骨構造", units:2, year:4, archGroup:6, mode:"text" },
+{ id:2234, name:"建築施工", units:2, year:4, archGroup:8, mode:"text" },
+{ id:2224, name:"建築法規", units:2, year:4, archGroup:9, mode:"text" },
+{ id:2313, name:"建築マネジメント論", units:2, year:4, archGroup:0, mode:"text" },
+{ id:2301, name:"建築造形", units:2, year:3, archGroup:0, mode:"text" },
+{ id:2302, name:"建築造形演習", units:2, year:3, archGroup:0, mode:"so" },
+{ id:2304, name:"CAD演習Ⅰ−1", units:2, year:3, archGroup:0, mode:"so" },
+{ id:2305, name:"CAD演習Ⅰ−2", units:2, year:3, archGroup:0, mode:"so" },
+{ id:2308, name:"デザイン演習Ⅰ−1", units:2, year:4, archGroup:0, mode:"so" },
+{ id:2309, name:"デザイン演習Ⅰ−2", units:2, year:4, archGroup:0, mode:"so" },
+{ id:2306, name:"建築デザイン論1", units:2, year:3, archGroup:0, mode:"so" },
+{ id:2307, name:"インテリアデザイン", units:2, year:3, archGroup:0, mode:"text" },
+{ id:2310, name:"建築デザイン論2", units:2, year:4, archGroup:0, mode:"so" },
+{ id:2314, name:"住宅環境性能論", units:2, year:4, archGroup:0, mode:"so" },
+{ id:2315, name:"環境都市計画論", units:2, year:4, archGroup:0, mode:"text" },
+{ id:9999, name:"卒業ゼミナール", units:2, year:4, archGroup:0, mode:"so" }
+];
+
+const EXTRA = [
+    { id:10010,name:"外国語 英語以外",units:4,year:"-",isSO: false },
+    { id:10020,name:"外国語 英語(認定)",units:4,year:"-",isSO: true },
+    { id:11010,name:"総合科目(T)",units:14,year:"-",isSO: false },
+    { id:11020,name:"総合科目(S/O)",units:10,year:"-",isSO: true },
+    { id:12010,name:"専門認定(基礎等)",units:28,year:"-",isSO: false, isSpec: true }
+];
+
+const GROUPS = {
+    1:{name:"①設計製図",first:7,second:3}, 2:{name:"②建築計画",first:7,second:2},
+    3:{name:"③環境工学",first:2,second:2}, 4:{name:"④設備",first:2,second:2},
+    5:{name:"⑤構造力学",first:4,second:3}, 6:{name:"⑥一般構造",first:3,second:3},
+    7:{name:"⑦材料",first:2,second:2}, 8:{name:"⑧生産",first:2,second:1},
+    9:{name:"⑨法規",first:1,second:1}, 0:{name:"その他専門",first:0,second:0}
+};
+
+let courseStates = JSON.parse(localStorage.getItem("courseStates_v1.0")) || {};
+
+function applyPreset(type) {
+    if (type === 'reset') { if(confirm("リセットしますか？")) courseStates = {}; } 
+    else {
+        courseStates = {};
+        if (type === 'design') {
+            [10010,10020,11010,11020,12010,2201,2202,2207,2208,2203,2204,2209,2210,2211,2218,2205,2214,2215,2222,2206].forEach(id => courseStates[id] = "completed");
+            [2216,2217,2225,2226,2227,2228,2219,2220,2229,2230,2231,2221,2223,2234,2224,9999].forEach(id => courseStates[id] = "planned");
+        } else {
+            [10010,10020,11010,11020,12010,2201,2202,2207,2208,2203,2204,2209,2210,2211,2218,2205,2212,2214,2215,2222,2206].forEach(id => courseStates[id] = "completed");
+            [2216,2217,2219,2220,2229,2230,2231,2213,2221,2232,2223,2233,2234,2224,9999].forEach(id => courseStates[id] = "planned");
+        }
+    }
+    localStorage.setItem("courseStates_v10", JSON.stringify(courseStates));
+    update();
+}
+
+function toggle(id) {
+    const cur = courseStates[id] || "none";
+    courseStates[id] = cur === "none" ? "planned" : (cur === "planned" ? "completed" : "none");
+    localStorage.setItem("courseStates_v10", JSON.stringify(courseStates));
+    update();
+}
+
+function renderCourses() {
+    const container = document.getElementById("category-container");
+    container.innerHTML = "";
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 0].forEach(gid => {
+        const g = GROUPS[gid];
+        const courses = COURSE_MASTER.filter(c => c.archGroup == gid);
+        let groupUnits = 0;
+        courses.forEach(c => { if (courseStates[c.id] && courseStates[c.id] !== "none") groupUnits += c.units; });
+        const is1 = gid != 0 && groupUnits >= g.first;
+        const is2 = gid != 0 && groupUnits >= g.second;
+        const div = document.createElement("div");
+        div.className = `bg-white p-4 rounded-xl shadow-sm border-l-4 transition-all ${is1 ? 'border-green-500 bg-green-50/30' : 'border-blue-400'}`;
+        div.innerHTML = `<div class="flex justify-between items-center mb-4"><h2 class="font-bold text-gray-800 text-sm">${g.name}</h2>
+            ${gid!=0 ? `<div class="flex gap-1.5"><span class="badge ${is2 ? 'badge-on' : 'badge-off'}">2級(${groupUnits}/${g.second})</span><span class="badge ${is1 ? 'badge-on' : 'badge-off'}">1級(${groupUnits}/${g.first})</span></div>` : ''}</div>
+            <div class="grid-container">${courses.map(c => {
+                const st = courseStates[c.id] || "none";
+                const bd = st === "completed" ? '<span class="done-badge">済</span>' : (st === "planned" ? '<span class="plan-badge">予</span>' : '');
+                return `<button onclick="toggle(${c.id})" class="state-${st} p-2 rounded text-[10px] h-12 flex flex-col items-center justify-center shadow-sm">
+                    ${bd}<span class="font-medium">${c.name}</span><span class="text-[8px] opacity-70">${c.year}年${c.mode==="so"?' S/O':''}</span></button>`;
+            }).join("")}</div>`;
+        container.appendChild(div);
+    });
+    const extraDiv = document.createElement("div");
+    extraDiv.className = "bg-white p-4 rounded-xl shadow-sm border-l-4 border-gray-400";
+    extraDiv.innerHTML = `<h2 class="font-bold mb-4 text-sm text-gray-700">認定単位</h2><div class="grid-container">
+        ${EXTRA.map(c => {
+            const st = courseStates[c.id] || "none";
+            const bd = st === "completed" ? '<span class="done-badge">済</span>' : (st === "planned" ? '<span class="plan-badge">予</span>' : '');
+            return `<button onclick="toggle(${c.id})" class="state-${st} p-2 rounded text-[10px] h-12 flex items-center justify-center shadow-sm font-medium">
+                ${bd}${c.name}<br>${c.units}単位</button>`;
+        }).join("")}</div>`;
+    container.appendChild(extraDiv);
+}
+
+function calculate() {
+    let s = { tC:0, tP:0, spC:0, spP:0, soC:0, soP:0, smC:0, smP:0, annP:0, arch:0 };
+    let gU = {}; Object.keys(GROUPS).forEach(k => gU[k]=0);
+
+    COURSE_MASTER.forEach(c => {
+        const st = courseStates[c.id];
+        if (st === "completed" || st === "planned") {
+            const isC = st === "completed";
+            isC ? s.tC += c.units : s.tP += c.units;
+            if (c.id === 9999) { isC ? s.smC += c.units : s.smP += c.units; }
+            else { isC ? s.spC += c.units : s.spP += c.units; }
+            if (c.mode === "so") { isC ? s.soC += c.units : s.soP += c.units; }
+            if (st === "planned") s.annP += c.units;
+            if (c.archGroup != 0) { s.arch += c.units; gU[c.archGroup] += c.units; }
+        }
+    });
+    EXTRA.forEach(c => {
+        const st = courseStates[c.id];
+        if (st === "completed" || st === "planned") {
+            const isC = st === "completed";
+            isC ? s.tC += c.units : s.tP += c.units;
+            if (c.isSO) { isC ? s.soC += c.units : s.soP += c.units; }
+            if (c.isSpec) { isC ? s.spC += c.units : s.spP += c.units; }
+        }
+    });
+
+    const setB = (idC, idP, vC, vP, max) => {
+        document.getElementById(idC).style.width = (vC / max * 100) + "%";
+        document.getElementById(idP).style.width = (vP / max * 100) + "%";
+        document.getElementById(idC).innerText = vC > 0 ? vC : "";
+        document.getElementById(idP).innerText = vP > 0 ? vP : "";
+    };
+    setB("gradBar-comp", "gradBar-plan", s.tC, s.tP, 126);
+    setB("specBar-comp", "specBar-plan", s.spC, s.spP, 92);
+    setB("soBar-comp", "soBar-plan", s.soC, s.soP, 32);
+    setB("semBar-comp", "semBar-plan", s.smC, s.smP, 2);
+
+    const isTotalOk = (s.tC + s.tP) >= 126;
+    const updateStatus = (idText, idBlock, idWarn, current, req) => {
+        const elText = document.getElementById(idText);
+        const elBlock = document.getElementById(idBlock);
+        const elWarn = document.getElementById(idWarn);
+        const isOk = current >= req;
+        if (isOk) {
+            elText.innerText = `${current} / ${req} ✅`; elText.className = "text-green-600 font-extrabold";
+            if (elBlock) elBlock.className = "p-1.5 rounded transition-colors border border-transparent";
+            if (elWarn) elWarn.classList.add("hidden");
+        } else {
+            elText.innerText = `${current} / ${req}`; elText.className = "text-blue-600 font-bold";
+            if (isTotalOk && elBlock && elWarn) { elBlock.className = "p-1.5 rounded bg-red-50 border border-red-200"; elWarn.classList.remove("hidden"); }
+            else { if (elBlock) elBlock.className = "p-1.5 rounded border border-transparent"; if (elWarn) elWarn.classList.add("hidden"); }
+        }
+    };
+    updateStatus("gradText-all", null, null, s.tC + s.tP, 126);
+    updateStatus("subVal-spec", "block-spec", "warn-spec", s.spC + s.spP, 92);
+    updateStatus("subVal-so", "block-so", "warn-so", s.soC + s.soP, 32);
+    updateStatus("subVal-sem", "block-sem", "warn-sem", s.smC + s.smP, 2);
+
+    // バッジ反映（今年度）
+    const bAnn = document.getElementById("top-badge-annual");
+    if (s.annP > 48) { bAnn.innerText = `今年度(${s.annP}/48) ⚠️超過[${s.annP-48}]`; bAnn.className = "badge badge-warn animate-pulse"; }
+    else { bAnn.innerText = `今年度(${s.annP}/48)`; bAnn.className = "badge badge-annual-ok"; }
+
+    // 建築士判定ロジック
+    const checkArch = (reqTotal, levelKey) => {
+        let fieldLack = false;
+        Object.entries(GROUPS).forEach(([id, g]) => { if(id!=0 && gU[id] < g[levelKey]) fieldLack = true; });
+        const totalLack = s.arch < reqTotal;
+        const isAchieved = !fieldLack && !totalLack;
+        const el = document.getElementById(`top-badge-${levelKey==='first'?1:2}`);
+        
+        if (isAchieved) {
+            el.innerText = `${levelKey==='first'?1:2}級(${s.arch}/${reqTotal}) ✅`; el.className = "badge badge-on";
+        } else {
+            if (isTotalOk) { // 卒業要件を満たしているのに建築士が未達の場合
+                let msg = `⚠️`;
+                if (totalLack) msg += `あと${reqTotal - s.arch}単`;
+                else if (fieldLack) msg += `分野不足`;
+                el.innerText = `${levelKey==='first'?1:2}級(${s.arch}/${reqTotal}) ${msg}`; el.className = "badge badge-warn";
+            } else {
+                el.innerText = `${levelKey==='first'?1:2}級(${s.arch}/${reqTotal})`; el.className = "badge badge-off";
+            }
+        }
+    };
+    checkArch(60, 'first');
+    checkArch(40, 'second');
+}
+
+function update() { renderCourses(); calculate(); }
+window.onload = update;
+</script>
+</body>
+</html>
