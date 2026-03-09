@@ -45,6 +45,17 @@
     </div>
 </div>
 
+<div id="custom-confirm-modal" class="fixed inset-0 bg-black/60 z-[100] hidden items-center justify-center backdrop-blur-sm">
+    <div class="bg-white p-6 rounded-2xl max-w-sm mx-4 shadow-2xl w-full">
+        <h2 id="confirm-title" class="font-bold text-xl mb-3 text-gray-800 flex items-center gap-2">確認</h2>
+        <p id="confirm-message" class="text-sm text-gray-700 mb-6 leading-relaxed"></p>
+        <div class="flex gap-3">
+            <button onclick="closeConfirm()" class="w-1/2 bg-gray-200 hover:bg-gray-300 text-gray-800 py-3 rounded-lg font-bold transition-colors">キャンセル</button>
+            <button id="confirm-execute-btn" onclick="executePreset()" class="w-1/2 text-white py-3 rounded-lg font-bold transition-colors">実行する</button>
+        </div>
+    </div>
+</div>
+
 <div class="max-w-5xl mx-auto">
     <div class="sticky-header bg-white/95 backdrop-blur shadow-md rounded-xl mb-6 border border-gray-200 p-3">
         
@@ -184,15 +195,62 @@ const GROUPS = {
 let courseStates = JSON.parse(localStorage.getItem("courseStates_rev6")) || {};
 let s = {}; let gU = {};
 
+// モーダルで選択されたアクションを一時保存する変数
+let pendingActionType = null;
+
+// 確認モーダルを開く関数
+function openConfirm(message, type) {
+    pendingActionType = type;
+    document.getElementById('confirm-message').innerText = message;
+    
+    const execBtn = document.getElementById('confirm-execute-btn');
+    const title = document.getElementById('confirm-title');
+    
+    // リセットか一括設定かでボタンの色とタイトルを変更（視認性向上）
+    if (type === 'reset') {
+        title.innerHTML = '⚠️ リセット確認';
+        title.className = 'font-bold text-xl mb-3 text-red-600 flex items-center gap-2';
+        execBtn.className = 'w-1/2 bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg font-bold transition-colors';
+    } else {
+        title.innerHTML = '📋 一括設定の確認';
+        title.className = 'font-bold text-xl mb-3 text-blue-600 flex items-center gap-2';
+        execBtn.className = 'w-1/2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold transition-colors';
+    }
+    
+    document.getElementById('custom-confirm-modal').style.display = 'flex';
+}
+
+// 確認モーダルを閉じる関数
+function closeConfirm() {
+    document.getElementById('custom-confirm-modal').style.display = 'none';
+    pendingActionType = null;
+}
+
+// ボタンクリック時の入り口（confirm()をopenConfirm()に変更）
 function applyPreset(type) {
-    if (type === 'reset') { if(!confirm("リセットしますか？")) return; courseStates = {}; } 
+    if (type === 'reset') { 
+        openConfirm("すべての設定をリセットしますか？", type); 
+    } else {
+        openConfirm("令和7年・3年次編入生の履修モデルに従って単位を設定します。卒業には自由選択科目の履修が必要です。", type);
+    }
+}
+
+// モーダルで「実行する」が押された時の処理（既存のロジック）
+function executePreset() {
+    const type = pendingActionType;
+    closeConfirm(); // モーダルを閉じる
+    
+    if (!type) return;
+
+    if (type === 'reset') { 
+        courseStates = {}; 
+    } 
     else {
-        if(!confirm("令和7年・3年次編入生の履修モデルに従って単位を設定します。卒業には自由選択科目の履修が必要です。")) return;
         courseStates = {};
         if (type === 'design') {
             [10010,10020,11010,11020,12010,2201,2202,2207,2208,2203,2204,2209,2210,2211,2218,2205,2214,2215,2222,2206].forEach(id => courseStates[id] = "completed");
             [2216,2217,2225,2226,2227,2228,2219,2220,2229,2230,2231,2221,2223,2234,2224,9999].forEach(id => courseStates[id] = "planned");
-        } else {
+        } else if (type === 'engineering') {
             [10010,10020,11010,11020,12010,2201,2202,2207,2208,2203,2204,2209,2210,2211,2218,2205,2212,2214,2215,2222,2206].forEach(id => courseStates[id] = "completed");
             [2216,2217,2219,2220,2229,2230,2231,2213,2221,2232,2223,2233,2234,2224,9999].forEach(id => courseStates[id] = "planned");
         }
