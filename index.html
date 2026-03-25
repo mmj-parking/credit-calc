@@ -499,27 +499,16 @@ function renderSummary() {
             ${items.map(c => row(c.name)).join('')}
         </div>`;
 
-    const statusCard = (label, ok, detail) => `
-        <div class="p-2 rounded-lg text-center border ${ok ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}">
-            <div class="text-[9px] font-bold ${ok ? 'text-green-600' : 'text-gray-400'} mb-0.5">${label}</div>
-            <div class="text-xs font-extrabold ${ok ? 'text-green-600' : 'text-gray-400'}">${ok ? '✅' : '未達'}</div>
-            <div class="text-[9px] ${ok ? 'text-green-500' : 'text-gray-400'}">${detail}</div>
-        </div>`;
-
     document.getElementById("summary-section").innerHTML = `
         <div class="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100">
             <span class="text-sm font-bold text-gray-700">📋 履修科目サマリー</span>
             <span class="text-[10px] text-gray-400 ml-auto">スクリーンショット用</span>
         </div>
 
-        <div class="grid grid-cols-4 gap-2 mb-4">
-            <div class="col-span-2 p-2 rounded-lg text-center border ${isFullyOk ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}">
-                <div class="text-[10px] font-bold ${isFullyOk ? 'text-green-600' : 'text-red-600'} mb-0.5">🎓 卒業要件</div>
-                <div class="text-sm font-extrabold ${isFullyOk ? 'text-green-600' : 'text-red-600'}">${isFullyOk ? 'クリア🌸' : '未達'}</div>
-                <div class="text-[9px] ${isFullyOk ? 'text-green-500' : 'text-red-400'}">${s.tC+s.tP}/126単位</div>
-            </div>
-            ${statusCard('2級建築士', !lack2, `建築系${s.arch}/40単`)}
-            ${statusCard('1級建築士', !lack1, `建築系${s.arch}/60単`)}
+        <div class="flex flex-wrap gap-1.5 mb-4">
+            <span class="badge ${isFullyOk ? 'badge-on' : 'badge-warn'}">🎓 卒業(${s.tC+s.tP}/126) ${isFullyOk ? '✅' : '未達'}</span>
+            <span class="badge ${!lack2 ? 'badge-on' : 'badge-off'}">2級(${s.arch}/40) ${!lack2 ? '✅' : '未達'}</span>
+            <span class="badge ${!lack1 ? 'badge-on' : 'badge-off'}">1級(${s.arch}/60) ${!lack1 ? '✅' : '未達'}</span>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
@@ -537,15 +526,15 @@ function renderSummary() {
                     <span class="text-xs font-bold text-yellow-700">📅 今年度予定</span>
                     <span class="text-[10px] font-bold text-yellow-700 bg-yellow-50 px-1.5 py-0.5 rounded-full">${planTotal}単位</span>
                 </div>
-                ${(planSOTotal > 0 || planTextTotal > 0) ? `<div class="text-[9px] text-gray-500 mb-2">S/O ${planSOTotal}単 + テキスト ${planTextTotal}単</div>` : ''}
                 ${group('S/O科目', plan.so, 'text-yellow-600')}
                 ${group('テキスト科目', plan.text, 'text-yellow-500')}
                 ${plan.so.length === 0 && plan.text.length === 0 ? '<p class="text-xs text-gray-400">なし</p>' : ''}
+                ${(planSOTotal > 0 || planTextTotal > 0) ? `<div class="text-[9px] text-gray-500 mb-2">S/O ${planSOTotal}単位 + テキスト ${planTextTotal}単位</div>` : ''}
             </div>
         </div>
 
         <div class="mt-3 pt-2 border-t border-gray-100 flex justify-between text-[10px] font-bold text-gray-500">
-            <span>合計選択: ${compTotal + planTotal}単位</span>
+            <span>合計: ${compTotal + planTotal}単位</span>
             <span>修得済${compTotal} + 今年度${planTotal}</span>
         </div>`;
 }
